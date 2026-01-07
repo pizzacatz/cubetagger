@@ -1,0 +1,1154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MTG Tag Builder + CSV (Offline)</title>
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f1620;
+      --panel2:#0c121a;
+      --text:#e6edf3;
+      --muted:#9fb0c0;
+      --border:rgba(255,255,255,.10);
+      --shadow: 0 10px 30px rgba(0,0,0,.45);
+
+      --chip:#121b27;
+      --chipHover:#182437;
+      --chipOn:#1b3a2d;
+      --chipOnHover:#21513e;
+
+      --accent:#7dd3fc;
+      --danger:#fb7185;
+      --ok:#4ade80;
+      --focus: rgba(125,211,252,.35);
+    }
+
+    @media (prefers-color-scheme: light){
+      :root{
+        --bg:#f6f7fb;
+        --panel:#ffffff;
+        --panel2:#f5f7fb;
+        --text:#0b1220;
+        --muted:#51627a;
+        --border:rgba(0,0,0,.10);
+        --shadow: 0 10px 30px rgba(0,0,0,.10);
+
+        --chip:#eef2f7;
+        --chipHover:#e6edf7;
+        --chipOn:#d8f7e3;
+        --chipOnHover:#c9f2d9;
+
+        --accent:#0284c7;
+        --danger:#e11d48;
+        --ok:#16a34a;
+        --focus: rgba(2,132,199,.25);
+      }
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(1200px 700px at 30% 0%, rgba(125,211,252,.08), transparent 55%),
+                  radial-gradient(1000px 600px at 85% 10%, rgba(74,222,128,.06), transparent 60%),
+                  var(--bg);
+      color:var(--text);
+      line-height:1.35;
+    }
+
+    .wrap{max-width: 1200px; margin: 28px auto; padding: 0 16px 28px;}
+    .header{display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:12px; margin-bottom: 14px;}
+    .title{display:flex; flex-direction:column; gap:6px;}
+    h1{margin:0; font-size: 18px; letter-spacing: .2px; font-weight: 700;}
+    .sub{margin:0; font-size: 12px; color: var(--muted);}
+
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0)) , var(--panel);
+      border:1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .cardHead{
+      padding: 14px 14px 10px;
+      border-bottom:1px solid var(--border);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .cardHead h2{margin:0; font-size: 13px; font-weight: 700; letter-spacing:.2px;}
+    .cardHead .hint{font-size: 12px; color: var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+    .cardBody{padding: 14px; background: var(--panel2);}
+
+    textarea, input[type="text"], input[type="range"]{
+      width:100%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.02);
+      color: var(--text);
+      padding: 12px 12px;
+      outline:none;
+      transition: box-shadow .15s, border-color .15s;
+      font-size: 13px;
+    }
+    textarea:focus, input[type="text"]:focus{
+      border-color: rgba(125,211,252,.45);
+      box-shadow: 0 0 0 4px var(--focus);
+    }
+    textarea{
+      min-height: 120px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      line-height:1.4;
+    }
+
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top: 10px;}
+    button{
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor:pointer;
+      font-weight: 650;
+      font-size: 13px;
+      transition: transform .05s, background .15s, border-color .15s;
+      user-select:none;
+      white-space:nowrap;
+    }
+    button:hover{ background: rgba(255,255,255,.07); }
+    button:active{ transform: translateY(1px); }
+    button.primary{
+      border-color: rgba(125,211,252,.35);
+      background: rgba(125,211,252,.10);
+    }
+    button.primary:hover{
+      background: rgba(125,211,252,.14);
+      border-color: rgba(125,211,252,.55);
+    }
+    button.danger{
+      border-color: rgba(251,113,133,.35);
+      background: rgba(251,113,133,.08);
+    }
+    button.danger:hover{
+      background: rgba(251,113,133,.12);
+      border-color: rgba(251,113,133,.55);
+    }
+    button:disabled{ opacity:.55; cursor:not-allowed; }
+
+    .pill{
+      font-size:11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.03);
+      color: var(--muted);
+    }
+    .statusLine{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+
+    .layout{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 950px){
+      .layout{ grid-template-columns: 1fr; }
+    }
+
+    .chipGrid{
+      display:grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+      align-items:stretch;
+    }
+
+    .chip{
+      position:relative;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      border:1px solid var(--border);
+      background: var(--chip);
+      cursor:pointer;
+      transition: background .15s, transform .05s, border-color .15s;
+      user-select:none;
+      min-height: 42px;
+    }
+    .chip:hover{ background: var(--chipHover); }
+    .chip:active{ transform: translateY(1px); }
+    .chip.on{
+      background: var(--chipOn);
+      border-color: rgba(74,222,128,.35);
+    }
+    .chip.on:hover{ background: var(--chipOnHover); }
+
+    .chip input{ position:absolute; opacity:0; pointer-events:none; }
+    .dot{
+      width: 12px; height: 12px; border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      flex: 0 0 auto;
+      box-shadow: inset 0 0 0 2px rgba(0,0,0,.15);
+    }
+    .chip.on .dot{
+      border-color: rgba(74,222,128,.65);
+      background: rgba(74,222,128,.70);
+    }
+    .chipLabel{
+      font-size: 13px;
+      font-weight: 650;
+      letter-spacing:.1px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      flex:1 1 auto;
+    }
+
+    .footerNote{margin-top: 10px; font-size: 12px; color: var(--muted);}
+    .ok{color:var(--ok)}
+    .bad{color:var(--danger)}
+    .kbd{
+      border:1px solid var(--border);
+      border-bottom-color: rgba(0,0,0,.25);
+      background: rgba(255,255,255,.04);
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      color: var(--text);
+    }
+
+    .twoCol{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px;
+    }
+    @media (max-width: 520px){
+      .twoCol{ grid-template-columns: 1fr; }
+    }
+    .inline{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+
+    .outputRow{
+      display:flex;
+      gap:10px;
+      align-items:stretch;
+      flex-wrap:wrap;
+    }
+    .outputRow input[type="text"]{
+      flex: 1 1 520px;
+      min-width: 260px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    /* Big Name Section */
+    .nameBig{
+      font-weight: 800;
+      letter-spacing: .2px;
+      line-height: 1.1;
+      margin: 0;
+      word-break: break-word;
+    }
+    .nameControls{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      flex-wrap:wrap;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .rangeWrap{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex: 1 1 360px;
+      min-width: 260px;
+    }
+    input[type="range"]{
+      padding: 10px 10px;
+      height: 42px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="title">
+        <h1>MTG Tag Builder + CSV</h1>
+        <p class="sub">Import at top → edit row → Next at bottom → Download when done</p>
+      </div>
+      <div class="statusLine">
+        <span class="pill" id="pillDataset">dataset: none</span>
+        <span class="pill" id="pillRow">row: —</span>
+        <span class="pill" id="pillNameSmall">name: —</span>
+        <span class="pill" id="pillTags">0 universe • 0 checked</span>
+      </div>
+    </div>
+
+    <!-- TOP: Import only -->
+    <section class="card">
+      <div class="cardHead">
+        <h2>Import CSV</h2>
+        <div class="hint">Exact headers required: <strong>name</strong>, <strong>tags</strong></div>
+      </div>
+      <div class="cardBody">
+        <div class="inline">
+          <input id="fileInput" type="file" accept=".csv,text/csv" />
+          <button class="danger" id="btnForget">Forget dataset</button>
+        </div>
+        <div class="footerNote" id="csvNote"></div>
+      </div>
+    </section>
+
+    <!-- Big name display + font size -->
+    <section class="card" style="margin-top:14px;">
+      <div class="cardHead">
+        <h2>Current Card</h2>
+        <div class="hint">Large name display (size persists globally)</div>
+      </div>
+      <div class="cardBody">
+        <h3 class="nameBig" id="nameBig">—</h3>
+        <div class="nameControls" style="margin-top:10px;">
+          <div class="rangeWrap">
+            <span class="pill" style="white-space:nowrap;">Name size</span>
+            <input id="nameSize" type="range" min="18" max="56" step="1" />
+            <span class="pill" id="nameSizeValue">—px</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="layout" style="margin-top:14px;">
+      <section class="card">
+        <div class="cardHead">
+          <h2>Input</h2>
+          <div class="hint">Semicolons only • Title Case • Dedupe</div>
+        </div>
+        <div class="cardBody">
+          <textarea id="input" placeholder="Example: Ramp; Card Draw; Removal; Token Maker; Graveyard Hate"></textarea>
+          <div class="row">
+            <button class="primary" id="btnPasteBuild">Paste + Build</button>
+            <button id="btnBuild">Build/Apply</button>
+            <button class="danger" id="btnClear">Clear tags for row</button>
+            <span class="pill" id="pillPersist">persist: on</span>
+          </div>
+          <div class="footerNote">
+            Build/Apply parses input → adds to Universe → checks those tags for this row.
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="cardHead">
+          <h2>Output</h2>
+          <div class="hint">Always alphabetical • delimiter “;” • no spaces</div>
+        </div>
+        <div class="cardBody">
+          <div class="outputRow">
+            <input id="output" type="text" readonly placeholder="Checked tags will appear here…" />
+            <button class="primary" id="btnCopy">Copy Output</button>
+          </div>
+          <div class="row">
+            <button id="btnCheckAll">Check all (Universe)</button>
+            <button id="btnUncheckAll">Uncheck all</button>
+          </div>
+          <div class="footerNote" id="copyNote"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Tag Grid -->
+    <section class="card" style="margin-top:14px;">
+      <div class="cardHead">
+        <h2>Tag Grid</h2>
+        <div class="hint">Master Universe • always alphabetical</div>
+      </div>
+      <div class="cardBody">
+        <div class="chipGrid" id="chipGrid"></div>
+      </div>
+    </section>
+
+    <!-- BOTTOM: Navigation + Search + Download -->
+    <section class="card" style="margin-top:14px;">
+      <div class="cardHead">
+        <h2>Navigation</h2>
+        <div class="hint">Search/jump + duplicate cycling + export</div>
+      </div>
+      <div class="cardBody">
+        <input id="searchInput" type="text" placeholder="Search/jump by name (exact or prefix). Enter to jump." />
+        <div class="row">
+          <button id="btnPrev">◀ Prev</button>
+          <button id="btnNext">Next ▶</button>
+
+          <span class="pill" id="pillDup">duplicates: —</span>
+          <button id="btnDupPrev">Dup ◀</button>
+          <button id="btnDupNext">Dup ▶</button>
+
+          <button class="primary" id="btnDownload">Download updated CSV</button>
+        </div>
+        <div class="footerNote">
+          Auto-write happens on checkbox toggle. Typed edits are per-row drafts until you click <strong>Build/Apply</strong>.
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ---------------- Storage ----------------
+    const STORAGE_KEY = "mtg_tag_builder_csv_v2";
+    const NAME_SIZE_KEY = "mtg_tag_builder_name_size_px";
+
+    function saveState(state){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+    function loadState(){
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+    function clearState(){
+      localStorage.removeItem(STORAGE_KEY);
+    }
+
+    // ---------------- Tag utilities ----------------
+    function toTitleCase(str){
+      const lower = str.toLowerCase();
+      return lower.replace(/\b([a-z])/g, (m, c) => c.toUpperCase());
+    }
+    function normalizeToken(raw){
+      const trimmed = raw.trim();
+      if (!trimmed) return "";
+      return toTitleCase(trimmed);
+    }
+    function parseTagsStringToNormalizedList(tagsString){
+      // returns normalized, deduped, sorted list (Title Case)
+      const rawTokens = String(tagsString ?? "").split(";");
+      const seen = new Set();
+      const out = [];
+      for (const t of rawTokens){
+        const norm = normalizeToken(t);
+        if (!norm) continue;
+        const key = norm.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(norm);
+      }
+      out.sort((a,b) => a.localeCompare(b, undefined, { sensitivity:"base" }));
+      return out;
+    }
+    function joinNoSpace(list){
+      // delimiter ';' no spaces, no trailing
+      return list.join(";");
+    }
+
+    // ---------------- CSV parsing/serialization ----------------
+    function parseCSV(text){
+      const rows = [];
+      let row = [];
+      let field = "";
+      let i = 0;
+      let inQuotes = false;
+
+      while (i < text.length){
+        const c = text[i];
+
+        if (inQuotes){
+          if (c === '"'){
+            const next = text[i+1];
+            if (next === '"'){ field += '"'; i += 2; continue; }
+            inQuotes = false; i++; continue;
+          } else {
+            field += c; i++; continue;
+          }
+        } else {
+          if (c === '"'){ inQuotes = true; i++; continue; }
+          if (c === ','){ row.push(field); field = ""; i++; continue; }
+          if (c === '\r'){
+            if (text[i+1] === '\n') i++;
+            row.push(field); rows.push(row);
+            row = []; field = ""; i++; continue;
+          }
+          if (c === '\n'){
+            row.push(field); rows.push(row);
+            row = []; field = ""; i++; continue;
+          }
+          field += c; i++; continue;
+        }
+      }
+
+      row.push(field);
+      const isOnlyEmpty = row.length === 1 && row[0] === "" && rows.length > 0;
+      if (!isOnlyEmpty) rows.push(row);
+
+      return rows;
+    }
+
+    function csvEscape(field){
+      const s = String(field ?? "");
+      const mustQuote = /[",\r\n]/.test(s);
+      if (!mustQuote) return s;
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    function toCSV(headers, rowObjects){
+      const lines = [];
+      lines.push(headers.map(csvEscape).join(","));
+      for (const obj of rowObjects){
+        const line = headers.map(h => csvEscape(obj[h] ?? "")).join(",");
+        lines.push(line);
+      }
+      return lines.join("\r\n");
+    }
+
+    // ---------------- Exact header validation (brittle) ----------------
+    function validateHeaders(headers){
+      const hs = headers.map(h => String(h ?? "").trim());
+      const hasName = hs.includes("name");
+      const hasTags = hs.includes("tags");
+      return { ok: hasName && hasTags, headers: hs };
+    }
+
+    // ---------------- Dataset model ----------------
+    let dataset = {
+      headers: [],
+      rows: [],
+      nameIndex: new Map(),  // nameKey -> [rowIndex...]
+      currentIndex: 0,
+      dupPos: 0,
+      loaded: false,
+      filename: "updated.csv",
+      universe: []           // Title Case, sorted
+    };
+
+    function normalizeNameKey(name){
+      return String(name ?? "").trim().toLowerCase();
+    }
+
+    function rebuildNameIndex(){
+      dataset.nameIndex = new Map();
+      dataset.rows.forEach((r, idx) => {
+        const key = normalizeNameKey(r["name"]);
+        if (!dataset.nameIndex.has(key)) dataset.nameIndex.set(key, []);
+        dataset.nameIndex.get(key).push(idx);
+      });
+    }
+
+    function rebuildUniverseFromAllRows(){
+      const seen = new Set();
+      const out = [];
+
+      for (const row of dataset.rows){
+        const list = parseTagsStringToNormalizedList(row["tags"]);
+        for (const t of list){
+          const k = t.toLowerCase();
+          if (seen.has(k)) continue;
+          seen.add(k);
+          out.push(t);
+        }
+      }
+
+      out.sort((a,b) => a.localeCompare(b, undefined, { sensitivity:"base" }));
+      dataset.universe = out;
+    }
+
+    function addToUniverseFromInput(inputText){
+      const list = parseTagsStringToNormalizedList(inputText);
+      const seen = new Set(dataset.universe.map(t => t.toLowerCase()));
+      let changed = false;
+
+      for (const t of list){
+        const k = t.toLowerCase();
+        if (seen.has(k)) continue;
+        seen.add(k);
+        dataset.universe.push(t);
+        changed = true;
+      }
+
+      if (changed){
+        dataset.universe.sort((a,b) => a.localeCompare(b, undefined, { sensitivity:"base" }));
+      }
+      return list; // normalized list from input
+    }
+
+    // ---------------- UI elements ----------------
+    const pillDataset = document.getElementById("pillDataset");
+    const pillRow = document.getElementById("pillRow");
+    const pillNameSmall = document.getElementById("pillNameSmall");
+    const pillTags = document.getElementById("pillTags");
+    const pillDup = document.getElementById("pillDup");
+
+    const nameBigEl = document.getElementById("nameBig");
+    const nameSizeEl = document.getElementById("nameSize");
+    const nameSizeValueEl = document.getElementById("nameSizeValue");
+
+    const fileInput = document.getElementById("fileInput");
+    const btnForget = document.getElementById("btnForget");
+    const btnDownload = document.getElementById("btnDownload");
+    const csvNote = document.getElementById("csvNote");
+
+    const btnPrev = document.getElementById("btnPrev");
+    const btnNext = document.getElementById("btnNext");
+    const btnDupPrev = document.getElementById("btnDupPrev");
+    const btnDupNext = document.getElementById("btnDupNext");
+    const searchInput = document.getElementById("searchInput");
+
+    const inputEl = document.getElementById("input");
+    const outputEl = document.getElementById("output");
+    const chipGridEl = document.getElementById("chipGrid");
+
+    const btnPasteBuild = document.getElementById("btnPasteBuild");
+    const btnBuild = document.getElementById("btnBuild");
+    const btnClear = document.getElementById("btnClear");
+    const btnCopy = document.getElementById("btnCopy");
+    const btnCheckAll = document.getElementById("btnCheckAll");
+    const btnUncheckAll = document.getElementById("btnUncheckAll");
+    const copyNote = document.getElementById("copyNote");
+
+    // ---------------- Per-row state ----------------
+    // checked keys are lowercased tags from Universe for current row
+    let checked = new Set();
+
+    function setNameSize(px){
+      nameBigEl.style.fontSize = `${px}px`;
+      nameSizeValueEl.textContent = `${px}px`;
+      localStorage.setItem(NAME_SIZE_KEY, String(px));
+    }
+
+    function initNameSize(){
+      const raw = localStorage.getItem(NAME_SIZE_KEY);
+      const px = raw ? Number(raw) : 34;
+      const safe = Number.isFinite(px) ? Math.max(18, Math.min(56, px)) : 34;
+      nameSizeEl.value = String(safe);
+      setNameSize(safe);
+    }
+
+    function setPills(){
+      if (!dataset.loaded){
+        pillDataset.textContent = "dataset: none";
+        pillRow.textContent = "row: —";
+        pillNameSmall.textContent = "name: —";
+        pillDup.textContent = "duplicates: —";
+        pillTags.textContent = "0 universe • 0 checked";
+        nameBigEl.textContent = "—";
+        return;
+      }
+
+      const row = dataset.rows[dataset.currentIndex];
+      const nm = row["name"] ?? "";
+      const key = normalizeNameKey(nm);
+      const list = dataset.nameIndex.get(key) || [dataset.currentIndex];
+
+      pillDataset.textContent = `dataset: ${dataset.rows.length} rows`;
+      pillRow.textContent = `row: ${dataset.currentIndex + 1}/${dataset.rows.length}`;
+      pillNameSmall.textContent = `name: ${String(nm).slice(0, 40) || "—"}`;
+      nameBigEl.textContent = String(nm) || "—";
+
+      pillDup.textContent = (list.length <= 1)
+        ? "duplicates: 1"
+        : `duplicates: ${dataset.dupPos + 1}/${list.length}`;
+
+      pillTags.textContent = `${dataset.universe.length} universe • ${checked.size} checked`;
+    }
+
+    function compileOutputForRow(){
+      // checked -> Title Case list from universe, sorted (universe already sorted)
+      const selected = dataset.universe.filter(t => checked.has(t.toLowerCase()));
+      return joinNoSpace(selected);
+    }
+
+    function ensureDraftInitialized(row){
+      // Preserve user typing even before Build/Apply.
+      if (typeof row._draftTags !== "string"){
+        row._draftTags = String(row["tags"] ?? "");
+      }
+    }
+
+    function loadRowIntoUI(){
+      if (!dataset.loaded){
+        checked = new Set();
+        inputEl.value = "";
+        outputEl.value = "";
+        renderGrid();
+        setPills();
+        return;
+      }
+
+      const row = dataset.rows[dataset.currentIndex];
+      ensureDraftInitialized(row);
+
+      // Input shows per-row draft (so typing persists across navigation)
+      inputEl.value = row._draftTags;
+
+      // Checked state reflects row["tags"] (the saved truth), not the draft.
+      const rowTags = parseTagsStringToNormalizedList(row["tags"]);
+      checked = new Set(rowTags.map(t => t.toLowerCase()));
+
+      // Output mirrors checked tags (saved truth)
+      outputEl.value = joinNoSpace(rowTags);
+
+      renderGrid();
+      setPills();
+      persistAll();
+    }
+
+    function renderGrid(){
+      chipGridEl.innerHTML = "";
+
+      if (!dataset.loaded){
+        chipGridEl.innerHTML = `<div style="color:var(--muted); font-size:13px;">Import a CSV to begin.</div>`;
+        return;
+      }
+
+      if (dataset.universe.length === 0){
+        chipGridEl.innerHTML = `<div style="color:var(--muted); font-size:13px;">Universe is empty. Type tags and click <strong>Build/Apply</strong> to create tags.</div>`;
+        return;
+      }
+
+      const frag = document.createDocumentFragment();
+
+      for (const tag of dataset.universe){
+        const key = tag.toLowerCase();
+        const isOn = checked.has(key);
+
+        const chip = document.createElement("label");
+        chip.className = "chip" + (isOn ? " on" : "");
+        chip.title = tag;
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = isOn;
+
+        const dot = document.createElement("span");
+        dot.className = "dot";
+
+        const label = document.createElement("span");
+        label.className = "chipLabel";
+        label.textContent = tag;
+
+        chip.appendChild(checkbox);
+        chip.appendChild(dot);
+        chip.appendChild(label);
+
+        chip.addEventListener("click", (e) => {
+          e.preventDefault();
+          toggleTag(key);
+        });
+
+        frag.appendChild(chip);
+      }
+
+      chipGridEl.appendChild(frag);
+    }
+
+    function toggleTag(key){
+      if (!dataset.loaded) return;
+      if (checked.has(key)) checked.delete(key);
+      else checked.add(key);
+
+      // Auto-write saved truth (row.tags) from checked state
+      const row = dataset.rows[dataset.currentIndex];
+      const out = compileOutputForRow();
+      row["tags"] = out;
+
+      // Also keep draft aligned with saved truth once user uses checkboxes
+      row._draftTags = out;
+
+      // Update output display and pills; re-render to update chip color
+      outputEl.value = out;
+      renderGrid();
+      setPills();
+      persistAll();
+    }
+
+    function applyFromInput(){
+      if (!dataset.loaded) return;
+
+      const row = dataset.rows[dataset.currentIndex];
+      ensureDraftInitialized(row);
+
+      // Add draft input tags into universe
+      const normalizedList = addToUniverseFromInput(inputEl.value);
+
+      // For Apply: those tags become checked (explicit action)
+      checked = new Set(normalizedList.map(t => t.toLowerCase()));
+
+      // Auto-write saved truth based on checked set
+      const out = compileOutputForRow();
+      row["tags"] = out;
+
+      // Draft becomes normalized output (keeps format consistent)
+      row._draftTags = out;
+      inputEl.value = out;
+      outputEl.value = out;
+
+      renderGrid();
+      setPills();
+      persistAll();
+    }
+
+    // ---------------- Navigation & search ----------------
+    function setCurrentIndex(idx){
+      if (!dataset.loaded) return;
+      const clamped = Math.max(0, Math.min(dataset.rows.length - 1, idx));
+      dataset.currentIndex = clamped;
+
+      const nm = dataset.rows[dataset.currentIndex]["name"];
+      const key = normalizeNameKey(nm);
+      const list = dataset.nameIndex.get(key) || [dataset.currentIndex];
+      const pos = list.indexOf(dataset.currentIndex);
+      dataset.dupPos = (pos >= 0) ? pos : 0;
+
+      loadRowIntoUI();
+    }
+
+    function cycleDuplicate(delta){
+      if (!dataset.loaded) return;
+      const row = dataset.rows[dataset.currentIndex];
+      const key = normalizeNameKey(row["name"]);
+      const list = dataset.nameIndex.get(key) || [dataset.currentIndex];
+      if (list.length <= 1) return;
+
+      dataset.dupPos = (dataset.dupPos + delta) % list.length;
+      if (dataset.dupPos < 0) dataset.dupPos += list.length;
+
+      dataset.currentIndex = list[dataset.dupPos];
+      loadRowIntoUI();
+    }
+
+    function jumpToName(query){
+      if (!dataset.loaded) return false;
+      const q = normalizeNameKey(query);
+      if (!q) return false;
+
+      if (dataset.nameIndex.has(q)){
+        const list = dataset.nameIndex.get(q);
+        dataset.currentIndex = list[0];
+        dataset.dupPos = 0;
+        loadRowIntoUI();
+        return true;
+      }
+
+      const candidates = [];
+      for (const [key, indices] of dataset.nameIndex.entries()){
+        if (key.startsWith(q)){
+          candidates.push({ key, firstIdx: indices[0] });
+        }
+      }
+      if (candidates.length === 0) return false;
+
+      candidates.sort((a,b) => a.firstIdx - b.firstIdx);
+      const chosen = candidates[0];
+      dataset.currentIndex = dataset.nameIndex.get(chosen.key)[0];
+      dataset.dupPos = 0;
+      loadRowIntoUI();
+      return true;
+    }
+
+    // ---------------- Clipboard helpers ----------------
+    async function writeClipboard(text){
+      await navigator.clipboard.writeText(text);
+    }
+    async function readClipboard(){
+      return await navigator.clipboard.readText();
+    }
+    async function pasteAndBuild(){
+      copyNote.textContent = "";
+      try{
+        const text = await readClipboard();
+        inputEl.value = text ?? "";
+        // Save draft, but do not overwrite row.tags until Apply
+        if (dataset.loaded){
+          const row = dataset.rows[dataset.currentIndex];
+          ensureDraftInitialized(row);
+          row._draftTags = inputEl.value;
+          persistAll();
+        }
+        applyFromInput();
+      }catch{
+        copyNote.className = "footerNote bad";
+        copyNote.textContent = "Clipboard paste was blocked. Paste manually into the input box, then click Build/Apply.";
+      }
+    }
+    async function copyOutput(){
+      copyNote.textContent = "";
+      const text = outputEl.value || "";
+      if (!text){
+        copyNote.className = "footerNote";
+        copyNote.textContent = "Nothing to copy (no tags checked).";
+        return;
+      }
+      try{
+        await writeClipboard(text);
+        copyNote.className = "footerNote ok";
+        copyNote.textContent = "Copied to clipboard.";
+        setTimeout(() => { copyNote.textContent = ""; }, 1200);
+      }catch{
+        outputEl.focus();
+        outputEl.select();
+        copyNote.className = "footerNote bad";
+        copyNote.textContent = "Clipboard copy failed. Output selected — press Ctrl+C.";
+      }
+    }
+
+    // ---------------- Import/export ----------------
+    function importCSVText(text, filename){
+      const table = parseCSV(text);
+      if (table.length < 2) throw new Error("CSV has no data rows.");
+
+      const rawHeaders = table[0];
+      const { ok, headers } = validateHeaders(rawHeaders);
+      if (!ok) throw new Error("Missing required headers: name, tags (exact).");
+
+      const rows = [];
+      for (let i = 1; i < table.length; i++){
+        const arr = table[i];
+        const anyNonEmpty = arr.some(x => String(x ?? "").trim() !== "");
+        if (!anyNonEmpty) continue;
+
+        const obj = {};
+        for (let c = 0; c < headers.length; c++){
+          obj[headers[c]] = arr[c] ?? "";
+        }
+        obj["name"] = obj["name"] ?? "";
+        obj["tags"] = obj["tags"] ?? "";
+        // drafts start unset; initialized on first loadRowIntoUI()
+        rows.push(obj);
+      }
+
+      dataset.headers = headers;
+      dataset.rows = rows;
+      dataset.loaded = true;
+      dataset.currentIndex = 0;
+      dataset.dupPos = 0;
+      dataset.filename = (filename && filename.toLowerCase().endsWith(".csv"))
+        ? filename.replace(/\.csv$/i, "_updated.csv")
+        : "updated.csv";
+
+      rebuildNameIndex();
+      rebuildUniverseFromAllRows();
+
+      csvNote.className = "footerNote ok";
+      csvNote.textContent = `Loaded ${rows.length} rows. Universe: ${dataset.universe.length} tags.`;
+
+      loadRowIntoUI();
+      persistAll();
+    }
+
+    function downloadCSV(){
+      if (!dataset.loaded) return;
+
+      const headers = dataset.headers.slice();
+      // enforce exact headers exist (brittle)
+      if (!headers.includes("name") || !headers.includes("tags")){
+        alert("Cannot export: headers must include exact 'name' and 'tags'.");
+        return;
+      }
+
+      // Do not export internal draft field
+      const exportRows = dataset.rows.map(r => {
+        const copy = { ...r };
+        delete copy._draftTags;
+        return copy;
+      });
+
+      const csv = toCSV(headers, exportRows);
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = dataset.filename || "updated.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      setTimeout(() => URL.revokeObjectURL(url), 2500);
+    }
+
+    // ---------------- Persistence ----------------
+    function persistAll(){
+      const state = {
+        dataset: dataset.loaded ? {
+          headers: dataset.headers,
+          rows: dataset.rows,
+          currentIndex: dataset.currentIndex,
+          dupPos: dataset.dupPos,
+          filename: dataset.filename,
+          universe: dataset.universe
+        } : null
+      };
+      saveState(state);
+    }
+
+    function restoreAll(){
+      const state = loadState();
+      if (!state || !state.dataset) return;
+
+      const d = state.dataset;
+      if (!d.headers || !d.rows) return;
+
+      dataset.headers = d.headers;
+      dataset.rows = d.rows;
+      dataset.loaded = true;
+      dataset.filename = d.filename || "updated.csv";
+      dataset.universe = Array.isArray(d.universe) ? d.universe : [];
+
+      rebuildNameIndex();
+
+      dataset.currentIndex = Math.max(0, Math.min(dataset.rows.length - 1, d.currentIndex ?? 0));
+      dataset.dupPos = d.dupPos ?? 0;
+
+      // If universe missing, rebuild it
+      if (!dataset.universe || dataset.universe.length === 0){
+        rebuildUniverseFromAllRows();
+      } else {
+        // Keep sorted (defensive)
+        dataset.universe.sort((a,b) => a.localeCompare(b, undefined, { sensitivity:"base" }));
+      }
+
+      csvNote.className = "footerNote";
+      csvNote.textContent = "Restored previous dataset from localStorage.";
+
+      loadRowIntoUI();
+    }
+
+    // ---------------- Wire up ----------------
+    fileInput.addEventListener("change", async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      try{
+        const text = await file.text();
+        importCSVText(text, file.name);
+      }catch(err){
+        csvNote.className = "footerNote bad";
+        csvNote.textContent = String(err?.message || err);
+      } finally {
+        fileInput.value = "";
+      }
+    });
+
+    btnForget.addEventListener("click", () => {
+      dataset = { headers: [], rows: [], nameIndex: new Map(), currentIndex: 0, dupPos: 0, loaded: false, filename: "updated.csv", universe: [] };
+      checked = new Set();
+      inputEl.value = "";
+      outputEl.value = "";
+      chipGridEl.innerHTML = "";
+
+      csvNote.className = "footerNote";
+      csvNote.textContent = "Dataset cleared.";
+
+      clearState();
+      setPills();
+      renderGrid();
+    });
+
+    btnDownload.addEventListener("click", downloadCSV);
+
+    btnPrev.addEventListener("click", () => setCurrentIndex(dataset.currentIndex - 1));
+    btnNext.addEventListener("click", () => setCurrentIndex(dataset.currentIndex + 1));
+    btnDupPrev.addEventListener("click", () => cycleDuplicate(-1));
+    btnDupNext.addEventListener("click", () => cycleDuplicate(+1));
+
+    searchInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter"){
+        e.preventDefault();
+        const ok = jumpToName(searchInput.value);
+        if (!ok){
+          csvNote.className = "footerNote bad";
+          csvNote.textContent = "No match found for that name (exact or prefix).";
+          setTimeout(() => { csvNote.textContent = ""; csvNote.className = "footerNote"; }, 1600);
+        } else {
+          csvNote.textContent = "";
+        }
+      }
+    });
+
+    btnPasteBuild.addEventListener("click", pasteAndBuild);
+    btnBuild.addEventListener("click", applyFromInput);
+
+    // Draft persistence while typing (per-row, does not touch row.tags)
+    inputEl.addEventListener("input", () => {
+      if (!dataset.loaded) return;
+      const row = dataset.rows[dataset.currentIndex];
+      ensureDraftInitialized(row);
+      row._draftTags = inputEl.value;
+      persistAll();
+    });
+
+    btnClear.addEventListener("click", () => {
+      if (!dataset.loaded) return;
+      const row = dataset.rows[dataset.currentIndex];
+      row["tags"] = "";
+      row._draftTags = "";
+      checked = new Set();
+      inputEl.value = "";
+      outputEl.value = "";
+      renderGrid();
+      setPills();
+      persistAll();
+    });
+
+    btnCopy.addEventListener("click", copyOutput);
+
+    btnCheckAll.addEventListener("click", () => {
+      if (!dataset.loaded) return;
+      checked = new Set(dataset.universe.map(t => t.toLowerCase()));
+      // auto-write
+      const row = dataset.rows[dataset.currentIndex];
+      const out = compileOutputForRow();
+      row["tags"] = out;
+      row._draftTags = out;
+      outputEl.value = out;
+      inputEl.value = out;
+      renderGrid();
+      setPills();
+      persistAll();
+    });
+
+    btnUncheckAll.addEventListener("click", () => {
+      if (!dataset.loaded) return;
+      checked = new Set();
+      const row = dataset.rows[dataset.currentIndex];
+      row["tags"] = "";
+      row._draftTags = "";
+      outputEl.value = "";
+      inputEl.value = "";
+      renderGrid();
+      setPills();
+      persistAll();
+    });
+
+    nameSizeEl.addEventListener("input", () => {
+      setNameSize(Number(nameSizeEl.value));
+    });
+
+    // ---------------- Init ----------------
+    (function init(){
+      initNameSize();
+      restoreAll();
+      if (!dataset.loaded){
+        csvNote.className = "footerNote";
+        csvNote.textContent = "Import a CSV to begin (requires headers: name, tags).";
+        setPills();
+        renderGrid();
+      }
+    })();
+  </script>
+</body>
+</html>
