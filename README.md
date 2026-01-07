@@ -1,3 +1,6 @@
+Web app url (https://pizzacatz.github.io/cubetagger/)
+
+
 # MTG Tag Builder (Offline CSV Tool)
 
 A single-file, offline HTML web app for efficiently tagging **Magic: The Gathering** cards using a semicolon-delimited tag system stored in a CSV file.
